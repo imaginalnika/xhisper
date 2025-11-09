@@ -4,7 +4,7 @@
 # Dictate anywhere in Linux. Transcription at your cursor.
 # - Transcription via Groq Whisper
 
-# Configuration (see default_xhisperrc or ~/.xhisperrc):
+# Configuration (see default_xhisperrc or ~/.config/xhisper/xhisperrc):
 # - long-recording-threshold : threshold for using large vs turbo model (seconds)
 # - transcription-prompt : context words for better Whisper accuracy
 # - silence-threshold : max volume in dB to consider silent (e.g., -50)
@@ -73,8 +73,9 @@ silence_percentage=95
 non_ascii_initial_delay=0.1
 non_ascii_default_delay=0.025
 
-# Load user configuration
-if [ -f "$HOME/.xhisperrc" ]; then
+CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/xhisper/xhisperrc"
+
+if [ -f "$CONFIG_FILE" ]; then
   while IFS=: read -r key value || [ -n "$key" ]; do
     # Skip comments and empty lines
     [[ "$key" =~ ^[[:space:]]*# ]] && continue
@@ -92,7 +93,7 @@ if [ -f "$HOME/.xhisperrc" ]; then
       non-ascii-initial-delay) non_ascii_initial_delay="$value" ;;
       non-ascii-default-delay) non_ascii_default_delay="$value" ;;
     esac
-  done < "$HOME/.xhisperrc"
+  done < "$CONFIG_FILE"
 fi
 
 # Auto-start daemon if not running

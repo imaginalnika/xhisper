@@ -3,6 +3,7 @@
 *~
 *.o
 CLAUDE.md
+context.txt
 archive/
 xhispertool
 xhispertoold

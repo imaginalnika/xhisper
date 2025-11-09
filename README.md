@@ -137,10 +137,11 @@ Key chords (like ctrl-space) not available yet.
 
 ## Configuration
 
-Configuration is read from `~/.xhisperrc`:
+Configuration is read from `~/.config/xhisper/xhisperrc`:
 
 ```sh
-cp default_xhisperrc ~/.xhisperrc
+mkdir -p ~/.config/xhisper
+cp default_xhisperrc ~/.config/xhisper/xhisperrc
 ```
 
 ## Troubleshooting

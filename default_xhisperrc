@@ -1,5 +1,5 @@
 # xhisper configuration
-# Copy to ~/.xhisperrc and customize
+# Copy to ~/.config/xhisper/xhisperrc and customize
 # When in doubt, check by running 'xhisper --log'
 
 # Transcription Settings:
