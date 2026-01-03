@@ -6,6 +6,15 @@
 long-recording-threshold : 1000
 transcription-prompt     : ""
 
+# Transcription backend: 'groq' (remote) or 'local' (run a local command)
+# If using 'local', set `local-transcribe-cmd` to a command that accepts the audio
+# file path via the placeholder `{file}` and prints the transcription to stdout.
+# You can also use `{prompt}` to inject `transcription-prompt` when needed.
+# Example:
+# local-transcribe-cmd : "/home/user/whisper.cpp/main -m /home/user/models/ggml-base.bin -f {file} -otxt 2>/dev/null | head -n 1"
+transcribe-backend       : groq
+local-transcribe-cmd     : ""
+
 # Paste Timing (seconds):
 non-ascii-initial-delay : 0.15 # Increase this if first character comes out wrong.
 non-ascii-default-delay : 0.025
@@ -14,3 +23,7 @@ non-ascii-default-delay : 0.025
 silence-threshold  : -50
 silence-percentage : 95
 
+# Timeouts (seconds):
+transcribe-timeout  : 120
+normalize-timeout   : 20
+record-stop-timeout : 3

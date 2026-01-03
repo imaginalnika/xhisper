@@ -13,6 +13,7 @@
 #include <libgen.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/stat.h>
 #include <linux/uinput.h>
 #define KEY_LEFTCTRL 29
 #define KEY_RIGHTCTRL 97
@@ -23,6 +24,7 @@
 #define KEY_LEFTMETA 125
 #define KEY_V 47
 #define FLAG_UPPERCASE 0x80000000
+#define XHISPER_SOCKET_PATH "/tmp/xhisper_socket"
 
 // Function prototypes
 void cleanup(void);
@@ -265,11 +267,11 @@ int setup_socket() {
         return -1;
     }
 
-    // Use abstract namespace socket (Linux-specific)
-    // First byte is null, no filesystem entry, kernel manages lifecycle
+    // Use filesystem socket so root daemon can accept user connections
     struct sockaddr_un addr = {.sun_family = AF_UNIX};
-    addr.sun_path[0] = '\0';
-    strncpy(addr.sun_path + 1, "xhisper_socket", sizeof(addr.sun_path) - 2);
+    strncpy(addr.sun_path, XHISPER_SOCKET_PATH, sizeof(addr.sun_path) - 1);
+    addr.sun_path[sizeof(addr.sun_path) - 1] = '\0';
+    unlink(XHISPER_SOCKET_PATH);
 
     if (bind(fd_socket, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         if (errno == EADDRINUSE) {
@@ -277,6 +279,11 @@ int setup_socket() {
         } else {
             perror("failed to bind socket");
         }
+        return -1;
+    }
+
+    if (chmod(XHISPER_SOCKET_PATH, 0666) < 0) {
+        perror("failed to chmod socket");
         return -1;
     }
 
@@ -295,7 +302,7 @@ int run_daemon() {
         return 1;
     }
 
-    printf("xhispertoold: listening on @xhisper_socket\n");
+    printf("xhispertoold: listening on %s\n", XHISPER_SOCKET_PATH);
 
     char buf[2];
     while (1) {
@@ -363,10 +370,10 @@ int run_client(int argc, char *argv[]) {
         return 1;
     }
 
-    // Use abstract namespace socket (same as daemon)
+    // Use filesystem socket (same as daemon)
     struct sockaddr_un addr = {.sun_family = AF_UNIX};
-    addr.sun_path[0] = '\0';
-    strncpy(addr.sun_path + 1, "xhisper_socket", sizeof(addr.sun_path) - 2);
+    strncpy(addr.sun_path, XHISPER_SOCKET_PATH, sizeof(addr.sun_path) - 1);
+    addr.sun_path[sizeof(addr.sun_path) - 1] = '\0';
 
     if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         int err = errno;
