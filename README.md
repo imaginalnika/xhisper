@@ -12,30 +12,30 @@ Dictation at cursor for Linux.
 
 <details>
 <summary>Arch Linux / Manjaro</summary>
-<pre><code>sudo pacman -S pipewire jq curl ffmpeg gcc</code></pre>
+<pre><code>sudo pacman -S pipewire jq curl ffmpeg gcc libxkbcommon</code></pre>
 </details>
 
 <details>
 <summary>Debian / Ubuntu / Linux Mint</summary>
 <pre><code>sudo apt update
-sudo apt install pipewire jq curl ffmpeg gcc</code></pre>
+sudo apt install pipewire jq curl ffmpeg gcc libxkbcommon-dev</code></pre>
 </details>
 
 <details>
 <summary>Fedora / RHEL / AlmaLinux / Rocky</summary>
-<pre><code>sudo dnf install -y pipewire pipewire-utils jq curl ffmpeg gcc</code></pre>
+<pre><code>sudo dnf install -y pipewire pipewire-utils jq curl ffmpeg gcc libxkbcommon-devel</code></pre>
 </details>
 
 <details>
 <summary>OpenSUSE (Leap / Tumbleweed)</summary>
 <pre><code>sudo zypper refresh
-sudo zypper install pipewire jq curl ffmpeg gcc</code></pre>
+sudo zypper install pipewire jq curl ffmpeg gcc libxkbcommon-devel</code></pre>
 </details>
 
 <details>
 <summary>Void Linux</summary>
 <pre><code>sudo xbps-install -S
-sudo xbps-install pipewire jq curl ffmpeg gcc</code></pre>
+sudo xbps-install pipewire jq curl ffmpeg gcc libxkbcommon-devel</code></pre>
 </details>
 
 **Note:** `wl-clipboard` (Wayland) or `xclip` (X11) required for non-ASCII but usually pre-installed.
@@ -143,9 +143,19 @@ The transcription will be typed at your cursor position.
 xhisper --log
 ```
 
-**Non-QWERTY layouts:**
+**Keyboard layouts:**
 
-For non-QWERTY layouts (e.g. Dvorak, International), set up an input switch key to QWERTY (e.g. rightalt). Then instead of binding to `xhisper`, bind to:
+xhisper auto-detects your keyboard layout via `libxkbcommon` at startup, so QWERTY variants (Italian, German, French, Spanish, etc.) work out of the box with correct punctuation.
+
+If auto-detection picks the wrong layout, set it explicitly in `~/.config/xhisper/xhisperrc`:
+```
+keyboard-layout : it
+```
+Then restart the daemon: `pkill xhispertoold`
+
+**Non-QWERTY layouts (Dvorak, Colemak, etc.):**
+
+For fundamentally different layouts, set up an input switch key to QWERTY (e.g. rightalt). Then instead of binding to `xhisper`, bind to:
 ```sh
 xhisper --<your-input-switch-key>
 ```
