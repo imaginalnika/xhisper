@@ -14,3 +14,10 @@ non-ascii-default-delay : 0.025
 silence-threshold  : -50
 silence-percentage : 95
 
+# Keyboard Layout (for correct punctuation typing):
+# Auto-detected from XKB_DEFAULT_LAYOUT if empty.
+# Set to your XKB layout code if auto-detection picks the wrong layout.
+# Changing this requires restarting the daemon (pkill xhispertoold).
+keyboard-layout  : ""
+keyboard-variant : ""
+

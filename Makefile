@@ -2,13 +2,15 @@
 
 CC = gcc
 CFLAGS = -O2 -Wall -Wextra
+XKB_CFLAGS = $(shell pkg-config --cflags xkbcommon)
+XKB_LIBS = $(shell pkg-config --libs xkbcommon)
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
 
 all: xhispertool test
 
 xhispertool: xhispertool.c
-	$(CC) $(CFLAGS) xhispertool.c -o xhispertool
+	$(CC) $(CFLAGS) $(XKB_CFLAGS) xhispertool.c -o xhispertool $(XKB_LIBS)
 	ln -sf xhispertool xhispertoold
 
 test: test.c

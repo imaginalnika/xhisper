@@ -72,6 +72,8 @@ silence_threshold=-50
 silence_percentage=95
 non_ascii_initial_delay=0.1
 non_ascii_default_delay=0.025
+keyboard_layout=""
+keyboard_variant=""
 
 CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/xhisper/xhisperrc"
 
@@ -92,13 +94,29 @@ if [ -f "$CONFIG_FILE" ]; then
       silence-percentage) silence_percentage="$value" ;;
       non-ascii-initial-delay) non_ascii_initial_delay="$value" ;;
       non-ascii-default-delay) non_ascii_default_delay="$value" ;;
+      keyboard-layout) keyboard_layout="$value" ;;
+      keyboard-variant) keyboard_variant="$value" ;;
     esac
   done < "$CONFIG_FILE"
 fi
 
+# Auto-detect keyboard layout if not explicitly configured
+if [ -z "$keyboard_layout" ]; then
+    if [ -n "$XKB_DEFAULT_LAYOUT" ]; then
+        keyboard_layout="$XKB_DEFAULT_LAYOUT"
+    elif command -v localectl &>/dev/null; then
+        keyboard_layout=$(localectl status 2>/dev/null | grep "X11 Layout" | awk '{print $3}')
+    elif [ -f /etc/default/keyboard ]; then
+        keyboard_layout=$(. /etc/default/keyboard 2>/dev/null && echo "$XKBLAYOUT")
+    fi
+fi
+
 # Auto-start daemon if not running
 if ! pgrep -x xhispertoold > /dev/null; then
-    "$XHISPERTOOLD" 2>> /tmp/xhispertoold.log &
+    DAEMON_ARGS=""
+    [ -n "$keyboard_layout" ] && DAEMON_ARGS="$DAEMON_ARGS --layout $keyboard_layout"
+    [ -n "$keyboard_variant" ] && DAEMON_ARGS="$DAEMON_ARGS --variant $keyboard_variant"
+    "$XHISPERTOOLD" $DAEMON_ARGS 2>> /tmp/xhispertoold.log &
     sleep 1  # Give daemon time to start
 
     # Verify daemon started successfully
