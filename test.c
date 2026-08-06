@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <sys/ioctl.h>
 #include <linux/uinput.h>
+#include "keymap.h"
 
 #define KEY_LEFTCTRL 29
 #define KEY_RIGHTCTRL 97
@@ -19,27 +20,8 @@
 #define KEY_RIGHTSHIFT 54
 #define KEY_LEFTMETA 125
 #define KEY_V 47
-#define FLAG_UPPERCASE 0x80000000
 
-// ASCII to Linux keycode mapping
-static const int32_t ascii2keycode_map[128] = {
-	-1,-1,-1,-1,-1,-1,-1,-1,
-	-1,KEY_TAB,KEY_ENTER,-1,-1,-1,-1,-1,
-	-1,-1,-1,-1,-1,-1,-1,-1,
-	-1,-1,-1,-1,-1,-1,-1,-1,
-	KEY_SPACE,KEY_1|FLAG_UPPERCASE,KEY_APOSTROPHE|FLAG_UPPERCASE,KEY_3|FLAG_UPPERCASE,KEY_4|FLAG_UPPERCASE,KEY_5|FLAG_UPPERCASE,KEY_7|FLAG_UPPERCASE,KEY_APOSTROPHE,
-	KEY_9|FLAG_UPPERCASE,KEY_0|FLAG_UPPERCASE,KEY_8|FLAG_UPPERCASE,KEY_EQUAL|FLAG_UPPERCASE,KEY_COMMA,KEY_MINUS,KEY_DOT,KEY_SLASH,
-	KEY_0,KEY_1,KEY_2,KEY_3,KEY_4,KEY_5,KEY_6,KEY_7,
-	KEY_8,KEY_9,KEY_SEMICOLON|FLAG_UPPERCASE,KEY_SEMICOLON,KEY_COMMA|FLAG_UPPERCASE,KEY_EQUAL,KEY_DOT|FLAG_UPPERCASE,KEY_SLASH|FLAG_UPPERCASE,
-	KEY_2|FLAG_UPPERCASE,KEY_A|FLAG_UPPERCASE,KEY_B|FLAG_UPPERCASE,KEY_C|FLAG_UPPERCASE,KEY_D|FLAG_UPPERCASE,KEY_E|FLAG_UPPERCASE,KEY_F|FLAG_UPPERCASE,KEY_G|FLAG_UPPERCASE,
-	KEY_H|FLAG_UPPERCASE,KEY_I|FLAG_UPPERCASE,KEY_J|FLAG_UPPERCASE,KEY_K|FLAG_UPPERCASE,KEY_L|FLAG_UPPERCASE,KEY_M|FLAG_UPPERCASE,KEY_N|FLAG_UPPERCASE,KEY_O|FLAG_UPPERCASE,
-	KEY_P|FLAG_UPPERCASE,KEY_Q|FLAG_UPPERCASE,KEY_R|FLAG_UPPERCASE,KEY_S|FLAG_UPPERCASE,KEY_T|FLAG_UPPERCASE,KEY_U|FLAG_UPPERCASE,KEY_V|FLAG_UPPERCASE,KEY_W|FLAG_UPPERCASE,
-	KEY_X|FLAG_UPPERCASE,KEY_Y|FLAG_UPPERCASE,KEY_Z|FLAG_UPPERCASE,KEY_LEFTBRACE,KEY_BACKSLASH,KEY_RIGHTBRACE,KEY_6|FLAG_UPPERCASE,KEY_MINUS|FLAG_UPPERCASE,
-	KEY_GRAVE,KEY_A,KEY_B,KEY_C,KEY_D,KEY_E,KEY_F,KEY_G,
-	KEY_H,KEY_I,KEY_J,KEY_K,KEY_L,KEY_M,KEY_N,KEY_O,
-	KEY_P,KEY_Q,KEY_R,KEY_S,KEY_T,KEY_U,KEY_V,KEY_W,
-	KEY_X,KEY_Y,KEY_Z,KEY_LEFTBRACE|FLAG_UPPERCASE,KEY_BACKSLASH|FLAG_UPPERCASE,KEY_RIGHTBRACE|FLAG_UPPERCASE,KEY_GRAVE|FLAG_UPPERCASE,-1
-};
+static const char *g_layout = "us";
 
 static int fd_uinput = -1;
 
@@ -74,15 +56,21 @@ void do_paste() {
 }
 
 void type_char(unsigned char c) {
-    if (c >= 128) return;
-
-    int32_t kdef = ascii2keycode_map[c];
+    int32_t kdef = keymap_lookup(g_layout, c);
     if (kdef == -1) return;
 
     uint16_t keycode = kdef & 0xffff;
+    int shift = (kdef & FLAG_UPPERCASE) != 0;
+    int altgr = (kdef & FLAG_ALTGR) != 0;
+    int dead = (kdef & FLAG_DEADKEY) != 0;
 
-    if (kdef & FLAG_UPPERCASE) {
+    if (shift) {
         emit(EV_KEY, KEY_LEFTSHIFT, 1);
+        emit(EV_SYN, SYN_REPORT, 0);
+        usleep(2000);
+    }
+    if (altgr) {
+        emit(EV_KEY, KEY_RIGHTALT, 1);
         emit(EV_SYN, SYN_REPORT, 0);
         usleep(2000);
     }
@@ -95,8 +83,20 @@ void type_char(unsigned char c) {
     emit(EV_SYN, SYN_REPORT, 0);
     usleep(2000);
 
-    if (kdef & FLAG_UPPERCASE) {
+    if (altgr) {
+        emit(EV_KEY, KEY_RIGHTALT, 0);
+        emit(EV_SYN, SYN_REPORT, 0);
+    }
+    if (shift) {
         emit(EV_KEY, KEY_LEFTSHIFT, 0);
+        emit(EV_SYN, SYN_REPORT, 0);
+    }
+
+    if (dead) {
+        emit(EV_KEY, KEY_SPACE, 1);
+        emit(EV_SYN, SYN_REPORT, 0);
+        usleep(2000);
+        emit(EV_KEY, KEY_SPACE, 0);
         emit(EV_SYN, SYN_REPORT, 0);
     }
 }
@@ -148,6 +148,7 @@ int setup_uinput() {
     ioctl(fd_uinput, UI_SET_KEYBIT, KEY_COMMA);
     ioctl(fd_uinput, UI_SET_KEYBIT, KEY_DOT);
     ioctl(fd_uinput, UI_SET_KEYBIT, KEY_SLASH);
+    ioctl(fd_uinput, UI_SET_KEYBIT, KEY_102ND);
     ioctl(fd_uinput, UI_SET_KEYBIT, KEY_TAB);
     ioctl(fd_uinput, UI_SET_KEYBIT, KEY_ENTER);
     ioctl(fd_uinput, UI_SET_KEYBIT, KEY_BACKSPACE);
@@ -298,6 +299,11 @@ int main(int argc, char *argv[]) {
     }
 
     printf("=== xhisper test ===\n");
+    const char *env_layout = getenv("XHISPER_LAYOUT");
+    if (env_layout && *env_layout) {
+        g_layout = env_layout;
+    }
+    printf("Keyboard layout: %s\n", g_layout);
     if (wrap_name) {
         printf("Wrapping with key: %s\n", wrap_name);
     }

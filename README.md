@@ -154,6 +154,16 @@ xhisper --<your-input-switch-key>
 
 Key chords (like ctrl-space) not available yet.
 
+**Keyboard layout for typed symbols:**
+
+ASCII letters and digits are typed by physical key position, but punctuation symbols differ between layouts. If you use a Danish keyboard layout and get wrong characters (e.g. `'` comes out as `ø`, `?` as `_`), set the layout in `~/.config/xhisper/xhisperrc`:
+
+```
+keyboard-layout : danish
+```
+
+Supported layouts: `us`, `danish`. The layout is read by the daemon at startup; the daemon is restarted automatically when the setting changes.
+
 ---
 
 ## Configuration

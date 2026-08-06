@@ -10,6 +10,11 @@ transcription-prompt     : ""
 non-ascii-initial-delay : 0.15 # Increase this if first character comes out wrong.
 non-ascii-default-delay : 0.025
 
+# Keyboard Layout:
+# Layout used when typing ASCII characters (us | danish).
+# The daemon is restarted automatically when this changes.
+keyboard-layout : us
+
 # Silence Detection:
 silence-threshold  : -50
 silence-percentage : 95

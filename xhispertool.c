@@ -14,6 +14,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <linux/uinput.h>
+#include "keymap.h"
 #define KEY_LEFTCTRL 29
 #define KEY_RIGHTCTRL 97
 #define KEY_LEFTALT 56
@@ -22,13 +23,12 @@
 #define KEY_RIGHTSHIFT 54
 #define KEY_LEFTMETA 125
 #define KEY_V 47
-#define FLAG_UPPERCASE 0x80000000
 
 // Function prototypes
 void cleanup(void);
 void emit(int type, int code, int val);
 void do_paste(void);
-void type_char(unsigned char c);
+void type_char(unsigned char c, const char *layout);
 void do_backspace(void);
 void do_key(int keycode);
 int setup_uinput(void);
@@ -36,85 +36,6 @@ int setup_socket(void);
 int run_daemon(void);
 void show_usage(void);
 int run_client(int argc, char *argv[]);
-
-// ASCII to Linux keycode mapping for US QWERTY layout
-// Independently derived from:
-// - ASCII character set specification (characters 0-127)
-// - Linux input-event-codes.h KEY_* constants
-// - US QWERTY keyboard physical layout
-// Each entry maps an ASCII code to either:
-//   -1 (unmapped/unsupported)
-//   KEY_* constant for unshifted characters
-//   KEY_* | FLAG_UPPERCASE for shifted characters
-static const int32_t ascii2keycode_map[128] = {
-	// Control characters (0x00-0x1f): mostly unmapped except tab and enter
-	-1,-1,-1,-1,-1,-1,-1,-1,  // 0x00-0x07
-	-1,KEY_TAB,KEY_ENTER,-1,-1,-1,-1,-1,  // 0x08-0x0f (tab=0x09, enter=0x0a)
-	-1,-1,-1,-1,-1,-1,-1,-1,  // 0x10-0x17
-	-1,-1,-1,-1,-1,-1,-1,-1,  // 0x18-0x1f
-
-	// Printable characters (0x20-0x7e)
-	// Space and symbols (0x20-0x2f)
-	KEY_SPACE,                      // 0x20 ' '
-	KEY_1|FLAG_UPPERCASE,           // 0x21 '!' (shift+1)
-	KEY_APOSTROPHE|FLAG_UPPERCASE,  // 0x22 '"' (shift+')
-	KEY_3|FLAG_UPPERCASE,           // 0x23 '#' (shift+3)
-	KEY_4|FLAG_UPPERCASE,           // 0x24 '$' (shift+4)
-	KEY_5|FLAG_UPPERCASE,           // 0x25 '%' (shift+5)
-	KEY_7|FLAG_UPPERCASE,           // 0x26 '&' (shift+7)
-	KEY_APOSTROPHE,                 // 0x27 '''
-	KEY_9|FLAG_UPPERCASE,           // 0x28 '(' (shift+9)
-	KEY_0|FLAG_UPPERCASE,           // 0x29 ')' (shift+0)
-	KEY_8|FLAG_UPPERCASE,           // 0x2a '*' (shift+8)
-	KEY_EQUAL|FLAG_UPPERCASE,       // 0x2b '+' (shift+=)
-	KEY_COMMA,                      // 0x2c ','
-	KEY_MINUS,                      // 0x2d '-'
-	KEY_DOT,                        // 0x2e '.'
-	KEY_SLASH,                      // 0x2f '/'
-
-	// Digits (0x30-0x39)
-	KEY_0,KEY_1,KEY_2,KEY_3,KEY_4,KEY_5,KEY_6,KEY_7,KEY_8,KEY_9,
-
-	// More symbols (0x3a-0x40)
-	KEY_SEMICOLON|FLAG_UPPERCASE,   // 0x3a ':' (shift+;)
-	KEY_SEMICOLON,                  // 0x3b ';'
-	KEY_COMMA|FLAG_UPPERCASE,       // 0x3c '<' (shift+,)
-	KEY_EQUAL,                      // 0x3d '='
-	KEY_DOT|FLAG_UPPERCASE,         // 0x3e '>' (shift+.)
-	KEY_SLASH|FLAG_UPPERCASE,       // 0x3f '?' (shift+/)
-	KEY_2|FLAG_UPPERCASE,           // 0x40 '@' (shift+2)
-
-	// Uppercase letters (0x41-0x5a): A-Z
-	KEY_A|FLAG_UPPERCASE,KEY_B|FLAG_UPPERCASE,KEY_C|FLAG_UPPERCASE,KEY_D|FLAG_UPPERCASE,
-	KEY_E|FLAG_UPPERCASE,KEY_F|FLAG_UPPERCASE,KEY_G|FLAG_UPPERCASE,KEY_H|FLAG_UPPERCASE,
-	KEY_I|FLAG_UPPERCASE,KEY_J|FLAG_UPPERCASE,KEY_K|FLAG_UPPERCASE,KEY_L|FLAG_UPPERCASE,
-	KEY_M|FLAG_UPPERCASE,KEY_N|FLAG_UPPERCASE,KEY_O|FLAG_UPPERCASE,KEY_P|FLAG_UPPERCASE,
-	KEY_Q|FLAG_UPPERCASE,KEY_R|FLAG_UPPERCASE,KEY_S|FLAG_UPPERCASE,KEY_T|FLAG_UPPERCASE,
-	KEY_U|FLAG_UPPERCASE,KEY_V|FLAG_UPPERCASE,KEY_W|FLAG_UPPERCASE,KEY_X|FLAG_UPPERCASE,
-	KEY_Y|FLAG_UPPERCASE,KEY_Z|FLAG_UPPERCASE,
-
-	// Brackets and symbols (0x5b-0x60)
-	KEY_LEFTBRACE,                  // 0x5b '['
-	KEY_BACKSLASH,                  // 0x5c '\'
-	KEY_RIGHTBRACE,                 // 0x5d ']'
-	KEY_6|FLAG_UPPERCASE,           // 0x5e '^' (shift+6)
-	KEY_MINUS|FLAG_UPPERCASE,       // 0x5f '_' (shift+-)
-	KEY_GRAVE,                      // 0x60 '`'
-
-	// Lowercase letters (0x61-0x7a): a-z
-	KEY_A,KEY_B,KEY_C,KEY_D,KEY_E,KEY_F,KEY_G,KEY_H,
-	KEY_I,KEY_J,KEY_K,KEY_L,KEY_M,KEY_N,KEY_O,KEY_P,
-	KEY_Q,KEY_R,KEY_S,KEY_T,KEY_U,KEY_V,KEY_W,KEY_X,
-	KEY_Y,KEY_Z,
-
-	// Final symbols (0x7b-0x7e)
-	KEY_LEFTBRACE|FLAG_UPPERCASE,   // 0x7b '{' (shift+[)
-	KEY_BACKSLASH|FLAG_UPPERCASE,   // 0x7c '|' (shift+\)
-	KEY_RIGHTBRACE|FLAG_UPPERCASE,  // 0x7d '}' (shift+])
-	KEY_GRAVE|FLAG_UPPERCASE,       // 0x7e '~' (shift+`)
-
-	-1  // 0x7f DEL (unmapped)
-};
 
 static int fd_uinput = -1;
 static int fd_socket = -1;
@@ -152,16 +73,22 @@ void do_paste() {
     emit(EV_SYN, SYN_REPORT, 0);
 }
 
-void type_char(unsigned char c) {
-    if (c >= 128) return;
-
-    int32_t kdef = ascii2keycode_map[c];
+void type_char(unsigned char c, const char *layout) {
+    int32_t kdef = keymap_lookup(layout, c);
     if (kdef == -1) return;
 
     uint16_t keycode = kdef & 0xffff;
+    int shift = (kdef & FLAG_UPPERCASE) != 0;
+    int altgr = (kdef & FLAG_ALTGR) != 0;
+    int dead = (kdef & FLAG_DEADKEY) != 0;
 
-    if (kdef & FLAG_UPPERCASE) {
+    if (shift) {
         emit(EV_KEY, KEY_LEFTSHIFT, 1);
+        emit(EV_SYN, SYN_REPORT, 0);
+        usleep(2000);
+    }
+    if (altgr) {
+        emit(EV_KEY, KEY_RIGHTALT, 1);
         emit(EV_SYN, SYN_REPORT, 0);
         usleep(2000);
     }
@@ -174,8 +101,22 @@ void type_char(unsigned char c) {
     emit(EV_SYN, SYN_REPORT, 0);
     usleep(2000);
 
-    if (kdef & FLAG_UPPERCASE) {
+    if (altgr) {
+        emit(EV_KEY, KEY_RIGHTALT, 0);
+        emit(EV_SYN, SYN_REPORT, 0);
+    }
+    if (shift) {
         emit(EV_KEY, KEY_LEFTSHIFT, 0);
+        emit(EV_SYN, SYN_REPORT, 0);
+    }
+
+    // Dead keys only produce a character when followed by a key;
+    // Space resolves them to the standalone character.
+    if (dead) {
+        emit(EV_KEY, KEY_SPACE, 1);
+        emit(EV_SYN, SYN_REPORT, 0);
+        usleep(2000);
+        emit(EV_KEY, KEY_SPACE, 0);
         emit(EV_SYN, SYN_REPORT, 0);
     }
 }
@@ -226,6 +167,7 @@ int setup_uinput() {
     ioctl(fd_uinput, UI_SET_KEYBIT, KEY_COMMA);
     ioctl(fd_uinput, UI_SET_KEYBIT, KEY_DOT);
     ioctl(fd_uinput, UI_SET_KEYBIT, KEY_SLASH);
+    ioctl(fd_uinput, UI_SET_KEYBIT, KEY_102ND);
     ioctl(fd_uinput, UI_SET_KEYBIT, KEY_TAB);
     ioctl(fd_uinput, UI_SET_KEYBIT, KEY_ENTER);
     ioctl(fd_uinput, UI_SET_KEYBIT, KEY_BACKSPACE);
@@ -295,7 +237,19 @@ int run_daemon() {
         return 1;
     }
 
-    printf("xhispertoold: listening on @xhisper_socket\n");
+    const char *layout = getenv("XHISPER_LAYOUT");
+    if (!layout || !*layout) {
+        layout = "us";
+    }
+
+    // Persist the layout so xhisper.sh can detect and restart a stale daemon.
+    FILE *layout_file = fopen("/tmp/xhispertoold.layout", "w");
+    if (layout_file) {
+        fprintf(layout_file, "%s\n", layout);
+        fclose(layout_file);
+    }
+
+    printf("xhispertoold: listening on @xhisper_socket (layout: %s)\n", layout);
 
     char buf[2];
     while (1) {
@@ -305,7 +259,7 @@ int run_daemon() {
             if (cmd == 'p') {
                 do_paste();
             } else if (cmd == 't' && n == 2) {
-                type_char((unsigned char)buf[1]);
+                type_char((unsigned char)buf[1], layout);
             } else if (cmd == 'b') {
                 do_backspace();
             } else if (cmd == 'r') {

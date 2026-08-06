@@ -5,14 +5,17 @@ CFLAGS = -O2 -Wall -Wextra
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
 
-all: xhispertool test
+all: xhispertool test test-keymap
 
-xhispertool: xhispertool.c
-	$(CC) $(CFLAGS) xhispertool.c -o xhispertool
+xhispertool: xhispertool.c keymap.c keymap.h
+	$(CC) $(CFLAGS) xhispertool.c keymap.c -o xhispertool
 	ln -sf xhispertool xhispertoold
 
-test: test.c
-	$(CC) $(CFLAGS) test.c -o test
+test: test.c keymap.c keymap.h
+	$(CC) $(CFLAGS) test.c keymap.c -o test
+
+test-keymap: test_keymap.c keymap.c keymap.h
+	$(CC) $(CFLAGS) -o test-keymap test_keymap.c keymap.c
 
 install: xhispertool xhisper.sh
 	install -d $(DESTDIR)$(BINDIR)
