@@ -11,7 +11,7 @@ non-ascii-initial-delay : 0.15 # Increase this if first character comes out wron
 non-ascii-default-delay : 0.025
 
 # Keyboard Layout:
-# Layout used when typing ASCII characters (us | danish).
+# Layout used when typing ASCII characters (us | dk).
 # The daemon is restarted automatically when this changes.
 keyboard-layout : us
 

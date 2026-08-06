@@ -159,10 +159,10 @@ Key chords (like ctrl-space) not available yet.
 ASCII letters and digits are typed by physical key position, but punctuation symbols differ between layouts. If you use a Danish keyboard layout and get wrong characters (e.g. `'` comes out as `ø`, `?` as `_`), set the layout in `~/.config/xhisper/xhisperrc`:
 
 ```
-keyboard-layout : danish
+keyboard-layout : dk
 ```
 
-Supported layouts: `us`, `danish`. The layout is read by the daemon at startup; the daemon is restarted automatically when the setting changes.
+Supported layouts: `us`, `dk`. The layout is read by the daemon at startup; the daemon is restarted automatically when the setting changes.
 
 ---
 

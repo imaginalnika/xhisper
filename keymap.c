@@ -135,7 +135,7 @@ static const struct keymap_layout {
 	size_t n_overrides;
 } layouts[] = {
 	{ "us", NULL, 0 },
-	{ "danish", danish_overrides, ARRAY_LEN(danish_overrides) },
+	{ "dk", danish_overrides, ARRAY_LEN(danish_overrides) },
 };
 
 // Resolved full tables, one per layouts[] entry, built lazily on first use.

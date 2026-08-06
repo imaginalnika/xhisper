@@ -11,7 +11,7 @@
 # - silence-percentage : percentage of recording that must be silent (e.g., 95)
 # - non-ascii-initial-delay : sleep after first non-ASCII paste (seconds)
 # - non-ascii-default-delay : sleep after subsequent non-ASCII pastes (seconds)
-# - keyboard-layout : keyboard layout used when typing (us | danish)
+# - keyboard-layout : keyboard layout used when typing (us | dk)
 
 # Requirements:
 # - pipewire, pipewire-utils (audio)
