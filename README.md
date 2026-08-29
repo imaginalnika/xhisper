@@ -63,8 +63,9 @@ GROQ_API_KEY=<your_API_key>
 
 3. Clone the repository and install:
 ```sh
-git clone --depth 1 https://github.com/imaginalnika/xhisper.git
+git clone --depth 1 https://github.com/lv10/xhisper.git
 cd xhisper && make
+make config
 sudo make install
 ```
 
@@ -158,18 +159,54 @@ Key chords (like ctrl-space) not available yet.
 
 ## Configuration
 
-Configuration is read from `~/.config/xhisper/xhisperrc`:
+Configuration is read from `~/.config/xhisper/xhisperrc`.
 
+You can initialize it by running:
+```sh
+make config
+```
+
+Or manually:
 ```sh
 mkdir -p ~/.config/xhisper
 cp default_xhisperrc ~/.config/xhisper/xhisperrc
 ```
 
+To view your current configuration:
+```sh
+xhisper --config
+# or
+make show
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `long-recording-threshold` | `1000` | Duration in ms above which the larger `whisper-large-v3` model is used instead of `whisper-large-v3-turbo` |
+| `transcription-prompt` | _(empty)_ | Context hint passed to Whisper to improve accuracy (e.g. common words, names, or domain vocabulary) |
+| `non-ascii-initial-delay` | `0.15` | Seconds to wait before pasting the first non-ASCII clipboard chunk — increase if the first character is wrong |
+| `non-ascii-default-delay` | `0.025` | Seconds to wait before subsequent non-ASCII clipboard chunks |
+| `silence-threshold` | `-50` | Max volume in dB to consider a recording silent (e.g. `-50` means anything quieter is discarded) |
+| `silence-percentage` | `95` | Percentage of the recording that must be below `silence-threshold` to be considered silent |
+
 ## Troubleshooting
 
-**Terminal Applications**: Clipboard paste uses Ctrl+V, which doesn't work in terminal emulators (they require Ctrl+Shift+V). Temporary workaround is to remap Ctrl+V to paste in your terminal emulator's settings. Note that *this limitation only affects international/Unicode characters*. ASCII characters (a-z, A-Z, 0-9, punctuation) are typed directly and doesn't care whether terminal or not.
+**Terminal Applications**: Clipboard paste uses Ctrl+V, which doesn't work in terminal emulators (they require Ctrl+Shift+V). Temporary workaround is to remap Ctrl+V to paste in your terminal emulator's settings. Note that *this limitation only affects international/Unicode characters*. ASCII characters (a-z, A-Z, 0-9, punctuation) are typed directly and are unaffected.
 
-**Non-ASCII Transcription**: Increase non-ascii-*-delay to give the transcription longer timing buffer.
+**Non-ASCII characters come out wrong**: Increase `non-ascii-initial-delay` (and `non-ascii-default-delay`) to give the Wayland compositor more time to process the clipboard update before the paste keystroke arrives.
+
+**Clipboard content is lost after dictation**: This should not happen — xhisper saves and restores your clipboard around any non-ASCII paste operations. If you see this, please open an issue.
+
+---
+
+## Development
+
+Run the test suite:
+
+```sh
+make check
+```
+
+This compiles and runs the C unit tests (`tests/test_xhispertool.c`) followed by the shell tests (`tests/test_paste.sh`). No external test framework is required.
 
 ---
 

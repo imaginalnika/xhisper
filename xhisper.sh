@@ -36,6 +36,14 @@ for arg in "$@"; do
       fi
       exit 0
       ;;
+    --config)
+      if [ -f "$CONFIG_FILE" ]; then
+        cat "$CONFIG_FILE"
+      else
+        echo "No config file found at $CONFIG_FILE" >&2
+      fi
+      exit 0
+      ;;
     --leftalt|--rightalt|--leftctrl|--rightctrl|--leftshift|--rightshift|--super)
       if [ -n "$WRAP_KEY" ]; then
         echo "Error: Multiple wrap keys not yet supported" >&2
@@ -61,6 +69,7 @@ else
   XHISPERTOOLD="xhispertoold"
 fi
 
+CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/xhisper/xhisperrc"
 RECORDING="/tmp/xhisper.wav"
 LOGFILE="/tmp/xhisper.log"
 PROCESS_PATTERN="pw-record.*$RECORDING"
@@ -72,8 +81,6 @@ silence_threshold=-50
 silence_percentage=95
 non_ascii_initial_delay=0.1
 non_ascii_default_delay=0.025
-
-CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/xhisper/xhisperrc"
 
 if [ -f "$CONFIG_FILE" ]; then
   while IFS=: read -r key value || [ -n "$key" ]; do
@@ -138,25 +145,54 @@ press_wrap_key() {
 
 paste() {
   local text="$1"
+
+  # Save clipboard so we can restore it after — non-ASCII chars require writing
+  # to the clipboard, which would otherwise destroy the user's copied content
+  local saved_clipboard
+  saved_clipboard=$($CLIP_PASTE 2>/dev/null || true)
+
   press_wrap_key
-  # Type character by character
-  # Use xhispertool type for ASCII (32-126), clipboard+paste for Unicode
+
+  # Type character by character for ASCII (32-126), clipboard+paste for Unicode.
+  # Consecutive non-ASCII chars are batched into one clipboard write + one Ctrl+V
+  # to reduce clipboard operations and avoid Wayland async race conditions.
+  # The sleep is placed BEFORE xhispertool paste so the compositor has time to
+  # process the clipboard update before the Ctrl+V arrives.
+  local chunk=""
+  local first_chunk=1
+  local clipboard_modified=0
   for ((i=0; i<${#text}; i++)); do
     local char="${text:$i:1}"
     local ascii=$(printf '%d' "'$char")
 
     if [[ $ascii -ge 32 && $ascii -le 126 ]]; then
-      # ASCII printable character - use direct key typing (faster)
+      # Flush any buffered non-ASCII chars before typing this ASCII char
+      if [[ -n "$chunk" ]]; then
+        echo -n "$chunk" | $CLIP_COPY
+        clipboard_modified=1
+        [[ $first_chunk -eq 1 ]] && sleep "$non_ascii_initial_delay" || sleep "$non_ascii_default_delay"
+        "$XHISPERTOOL" paste
+        chunk=""
+        first_chunk=0
+      fi
       "$XHISPERTOOL" type "$char"
     else
-      # Unicode or special character - use clipboard
-      echo -n "$char" | $CLIP_COPY
-      "$XHISPERTOOL" paste
-      # On first character (more error-prone), sleep longer
-      [ "$i" -eq 0 ] && sleep "$non_ascii_initial_delay" || sleep "$non_ascii_default_delay"
+      chunk+="$char"
     fi
   done
+
+  # Flush any remaining non-ASCII chunk
+  if [[ -n "$chunk" ]]; then
+    echo -n "$chunk" | $CLIP_COPY
+    clipboard_modified=1
+    [[ $first_chunk -eq 1 ]] && sleep "$non_ascii_initial_delay" || sleep "$non_ascii_default_delay"
+    "$XHISPERTOOL" paste
+  fi
+
   press_wrap_key
+
+  # Restore clipboard only if we modified it — avoids touching clipboard for ASCII-only text
+  [[ $clipboard_modified -eq 1 ]] && echo -n "$saved_clipboard" | $CLIP_COPY
 }
 
 delete_n_chars() {
